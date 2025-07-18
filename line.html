@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Telegram Store</title>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <style>
+        :root {
+            --bg-color: var(--tg-theme-bg-color, #ffffff);
+            --text-color: var(--tg-theme-text-color, #000000);
+            --button-color: var(--tg-theme-button-color, #2481cc);
+            --button-text-color: var(--tg-theme-button-text-color, #ffffff);
+            --secondary-bg-color: var(--tg-theme-secondary-bg-color, #f3f2f8);
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+        }
+        
+        .container {
+            padding: 16px;
+            max-width: 800px;
+            margin: 0 auto;
+        }
+        
+        .product-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+            gap: 16px;
+            margin-top: 20px;
+        }
+        
+        .product-card {
+            background: var(--secondary-bg-color);
+            border-radius: 12px;
+            overflow: hidden;
+            transition: transform 0.2s;
+        }
+        
+        .product-card:hover {
+            transform: translateY(-5px);
+        }
+        
+        .product-image {
+            width: 100%;
+            height: 120px;
+            object-fit: cover;
+        }
+        
+        .product-info {
+            padding: 12px;
+        }
+        
+        .product-title {
+            font-weight: 500;
+            margin: 0 0 4px 0;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        
+        .product-price {
+            font-weight: bold;
+            color: var(--button-color);
+            margin: 0;
+        }
+        
+        .product-button {
+            width: 100%;
+            background: var(--button-color);
+            color: var(--button-text-color);
+            border: none;
+            padding: 8px;
+            border-radius: 0 0 12px 12px;
+            cursor: pointer;
+        }
+        
+        .product-detail {
+            margin-top: 20px;
+            background: var(--secondary-bg-color);
+            border-radius: 12px;
+            padding: 16px;
+        }
+        
+        .back-button {
+            background: var(--secondary-bg-color);
+            border: none;
+            padding: 8px 16px;
+            border-radius: 8px;
+            margin-bottom: 16px;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+    <div class="container" id="app">
+        <div id="product-list-view">
+            <h1>Our Products</h1>
+            <div class="product-grid" id="product-grid"></div>
+        </div>
+        
+        <div id="product-detail-view" style="display: none;">
+            <button class="back-button" onclick="showProductList()">← Back to Products</button>
+            <div class="product-detail" id="product-detail"></div>
+            <button class="product-button" onclick="addToCart()">Add to Cart</button>
+        </div>
+    </div>
+
+    <script>
+        // Initialize Telegram Web App
+        const tg = Telegram.WebApp;
+        tg.expand();
+        tg.MainButton.hide();
+        
+        // Sample product data (replace with your API calls)
+        const products = [
+            {
+                id: 1,
+                name: "Wireless Headphones",
+                price: 99.99,
+                image: "https://via.placeholder.com/300x200?text=Headphones",
+                description: "Premium wireless headphones with noise cancellation and 30-hour battery life."
+            },
+            {
+                id: 2,
+                name: "Smart Watch",
+                price: 199.99,
+                image: "https://via.placeholder.com/300x200?text=Smart+Watch",
+                description: "Feature-rich smartwatch with health monitoring and GPS."
+            },
+            {
+                id: 3,
+                name: "Bluetooth Speaker",
+                price: 59.99,
+                image: "https://via.placeholder.com/300x200?text=Speaker",
+                description: "Portable Bluetooth speaker with 20W output and waterproof design."
+            },
+            {
+                id: 4,
+                name: "Phone Charger",
+                price: 19.99,
+                image: "https://via.placeholder.com/300x200?text=Charger",
+                description: "Fast-charging USB-C cable with durable construction."
+            }
+        ];
+        
+        // Current selected product
+        let currentProduct = null;
+        
+        // Load products when app starts
+        document.addEventListener('DOMContentLoaded', function() {
+            displayProducts();
+        });
+        
+        // Display all products
+        function displayProducts() {
+            const container = document.getElementById('product-grid');
+            container.innerHTML = '';
+            
+            products.forEach(product => {
+                const productElement = document.createElement('div');
+                productElement.className = 'product-card';
+                productElement.innerHTML = `
+                    <img src="${product.image}" class="product-image" alt="${product.name}">
+                    <div class="product-info">
+                        <h3 class="product-title">${product.name}</h3>
+                        <p class="product-price">$${product.price.toFixed(2)}</p>
+                    </div>
+                    <button class="product-button" onclick="showProductDetail(${product.id})">View Details</button>
+                `;
+                container.appendChild(productElement);
+            });
+        }
+        
+        // Show product details
+        function showProductDetail(productId) {
+            currentProduct = products.find(p => p.id === productId);
+            
+            if (!currentProduct) return;
+            
+            const detailView = document.getElementById('product-detail');
+            detailView.innerHTML = `
+                <img src="${currentProduct.image}" style="width:100%; border-radius:8px; margin-bottom:12px;">
+                <h2>${currentProduct.name}</h2>
+                <p style="font-size:1.2em; color:var(--button-color);">$${currentProduct.price.toFixed(2)}</p>
+                <p>${currentProduct.description}</p>
+            `;
+            
+            document.getElementById('product-list-view').style.display = 'none';
+            document.getElementById('product-detail-view').style.display = 'block';
+        }
+        
+        // Show product list
+        function showProductList() {
+            document.getElementById('product-list-view').style.display = 'block';
+            document.getElementById('product-detail-view').style.display = 'none';
+        }
+        
+        // Add to cart function
+        function addToCart() {
+            if (!currentProduct) return;
+            
+            tg.showAlert(`Added ${currentProduct.name} to your cart!`);
+            
+            // In a real app, you would:
+            // 1. Add to cart in your backend
+            // 2. Update the cart count
+            // 3. Potentially show a confirmation
+            
+            // For now, just show an alert and go back
+            showProductList();
+        }
+        
+        // Handle theme changes
+        tg.onEvent('themeChanged', () => {
+            document.documentElement.style.setProperty(
+                '--bg-color', 
+                Telegram.WebApp.colorScheme === 'dark' ? '#212121' : '#ffffff'
+            );
+            document.documentElement.style.setProperty(
+                '--text-color', 
+                Telegram.WebApp.colorScheme === 'dark' ? '#ffffff' : '#000000'
+            );
+        });
+    </script>
+</body>
+</html>
