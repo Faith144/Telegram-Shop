@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Telegram Store</title>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <style>
         :root {
@@ -12,6 +12,7 @@
             --button-color: var(--tg-theme-button-color, #2481cc);
             --button-text-color: var(--tg-theme-button-text-color, #ffffff);
             --secondary-bg-color: var(--tg-theme-secondary-bg-color, #f3f2f8);
+            --hint-color: var(--tg-theme-hint-color, #707579);
         }
         
         body {
@@ -20,19 +21,49 @@
             padding: 0;
             background-color: var(--bg-color);
             color: var(--text-color);
+            line-height: 1.5;
         }
         
         .container {
             padding: 16px;
-            max-width: 800px;
-            margin: 0 auto;
+            max-width: 100%;
+            box-sizing: border-box;
+        }
+        
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+        
+        .cart-btn {
+            background: none;
+            border: none;
+            color: var(--button-color);
+            font-size: 1.2rem;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            cursor: pointer;
+        }
+        
+        .cart-count {
+            background: var(--button-color);
+            color: var(--button-text-color);
+            border-radius: 50%;
+            width: 20px;
+            height: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.8rem;
         }
         
         .product-grid {
             display: grid;
             grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
             gap: 16px;
-            margin-top: 20px;
         }
         
         .product-card {
@@ -49,7 +80,10 @@
         .product-image {
             width: 100%;
             height: 120px;
-            object-fit: cover;
+            object-fit: contain;
+            background: white;
+            padding: 10px;
+            box-sizing: border-box;
         }
         
         .product-info {
@@ -62,12 +96,23 @@
             white-space: nowrap;
             overflow: hidden;
             text-overflow: ellipsis;
+            font-size: 0.9rem;
         }
         
         .product-price {
             font-weight: bold;
             color: var(--button-color);
             margin: 0;
+            font-size: 0.9rem;
+        }
+        
+        .product-rating {
+            display: flex;
+            align-items: center;
+            gap: 3px;
+            margin-top: 4px;
+            font-size: 0.8rem;
+            color: var(--hint-color);
         }
         
         .product-button {
@@ -76,144 +121,368 @@
             color: var(--button-text-color);
             border: none;
             padding: 8px;
-            border-radius: 0 0 12px 12px;
             cursor: pointer;
+            font-size: 0.9rem;
         }
         
         .product-detail {
-            margin-top: 20px;
-            background: var(--secondary-bg-color);
+            margin-top: 10px;
+        }
+        
+        .detail-image {
+            width: 100%;
+            max-height: 300px;
+            object-fit: contain;
+            background: white;
             border-radius: 12px;
-            padding: 16px;
+            margin-bottom: 16px;
+        }
+        
+        .detail-title {
+            font-size: 1.3rem;
+            margin: 0 0 8px 0;
+        }
+        
+        .detail-price {
+            font-size: 1.5rem;
+            color: var(--button-color);
+            margin: 0 0 16px 0;
+        }
+        
+        .detail-category {
+            display: inline-block;
+            background: var(--secondary-bg-color);
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 0.8rem;
+            margin-bottom: 16px;
+        }
+        
+        .detail-description {
+            margin-bottom: 20px;
         }
         
         .back-button {
-            background: var(--secondary-bg-color);
+            background: none;
             border: none;
-            padding: 8px 16px;
-            border-radius: 8px;
-            margin-bottom: 16px;
+            font-size: 1.2rem;
             cursor: pointer;
+            padding: 8px 0;
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+        
+        .loading {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100px;
+            font-size: 1.2rem;
+            color: var(--hint-color);
+        }
+        
+        .error {
+            color: #ff3b30;
+            text-align: center;
+            padding: 20px;
         }
     </style>
 </head>
 <body>
     <div class="container" id="app">
+        <!-- Product List View -->
         <div id="product-list-view">
-            <h1>Our Products</h1>
-            <div class="product-grid" id="product-grid"></div>
+            <div class="header">
+                <h1>Products</h1>
+                <button class="cart-btn" onclick="showCart()">
+                    🛒 <span class="cart-count" id="cart-count">0</span>
+                </button>
+            </div>
+            
+            <div id="category-filter">
+                <select id="category-select" onchange="filterByCategory()" style="width:100%; padding:8px; margin-bottom:16px; border-radius:8px; background:var(--secondary-bg-color); border:none;">
+                    <option value="">All Categories</option>
+                </select>
+            </div>
+            
+            <div id="products-container">
+                <div class="loading">Loading products...</div>
+            </div>
         </div>
         
-        <div id="product-detail-view" style="display: none;">
-            <button class="back-button" onclick="showProductList()">← Back to Products</button>
-            <div class="product-detail" id="product-detail"></div>
+        <!-- Product Detail View -->
+        <div id="product-detail-view" style="display:none;">
+            <button class="back-button" onclick="showProductList()">
+                ← Back to Products
+            </button>
+            <div id="product-detail-content"></div>
             <button class="product-button" onclick="addToCart()">Add to Cart</button>
+        </div>
+        
+        <!-- Cart View -->
+        <div id="cart-view" style="display:none;">
+            <button class="back-button" onclick="showProductList()">
+                ← Back to Products
+            </button>
+            <h1>Your Cart</h1>
+            <div id="cart-items"></div>
+            <div id="cart-total" style="font-weight:bold; margin:16px 0; text-align:right;"></div>
+            <button class="product-button" onclick="checkout()">Checkout</button>
         </div>
     </div>
 
     <script>
-        // Initialize Telegram Web App
+        // Telegram Web App initialization
         const tg = Telegram.WebApp;
         tg.expand();
         tg.MainButton.hide();
         
-        // Sample product data (replace with your API calls)
-        const products = [
-            {
-                id: 1,
-                name: "Wireless Headphones",
-                price: 99.99,
-                image: "https://via.placeholder.com/300x200?text=Headphones",
-                description: "Premium wireless headphones with noise cancellation and 30-hour battery life."
-            },
-            {
-                id: 2,
-                name: "Smart Watch",
-                price: 199.99,
-                image: "https://via.placeholder.com/300x200?text=Smart+Watch",
-                description: "Feature-rich smartwatch with health monitoring and GPS."
-            },
-            {
-                id: 3,
-                name: "Bluetooth Speaker",
-                price: 59.99,
-                image: "https://via.placeholder.com/300x200?text=Speaker",
-                description: "Portable Bluetooth speaker with 20W output and waterproof design."
-            },
-            {
-                id: 4,
-                name: "Phone Charger",
-                price: 19.99,
-                image: "https://via.placeholder.com/300x200?text=Charger",
-                description: "Fast-charging USB-C cable with durable construction."
-            }
-        ];
-        
-        // Current selected product
+        // State management
+        let products = [];
+        let categories = [];
+        let cart = JSON.parse(localStorage.getItem('cart')) || [];
         let currentProduct = null;
         
-        // Load products when app starts
-        document.addEventListener('DOMContentLoaded', function() {
-            displayProducts();
+        // DOM elements
+        const productsContainer = document.getElementById('products-container');
+        const productDetailView = document.getElementById('product-detail-view');
+        const productDetailContent = document.getElementById('product-detail-content');
+        const productListView = document.getElementById('product-list-view');
+        const cartView = document.getElementById('cart-view');
+        const cartItems = document.getElementById('cart-items');
+        const cartCount = document.getElementById('cart-count');
+        const cartTotal = document.getElementById('cart-total');
+        const categorySelect = document.getElementById('category-select');
+        
+        // Initialize the app
+        document.addEventListener('DOMContentLoaded', async () => {
+            updateCartCount();
+            await loadCategories();
+            await loadProducts();
         });
         
-        // Display all products
+        // Load products from FakeStoreAPI
+        async function loadProducts(category = '') {
+            try {
+                productsContainer.innerHTML = '<div class="loading">Loading products...</div>';
+                
+                const url = category 
+                    ? `https://fakestoreapi.com/products/category/${encodeURIComponent(category)}`
+                    : 'https://fakestoreapi.com/products';
+                
+                const response = await fetch(url);
+                if (!response.ok) throw new Error('Failed to load products');
+                
+                products = await response.json();
+                displayProducts();
+            } catch (error) {
+                productsContainer.innerHTML = `<div class="error">Error loading products: ${error.message}</div>`;
+                console.error('Error loading products:', error);
+            }
+        }
+        
+        // Load categories from FakeStoreAPI
+        async function loadCategories() {
+            try {
+                const response = await fetch('https://fakestoreapi.com/products/categories');
+                if (!response.ok) throw new Error('Failed to load categories');
+                
+                categories = await response.json();
+                
+                // Populate category dropdown
+                categorySelect.innerHTML = '<option value="">All Categories</option>';
+                categories.forEach(category => {
+                    const option = document.createElement('option');
+                    option.value = category;
+                    option.textContent = category.charAt(0).toUpperCase() + category.slice(1);
+                    categorySelect.appendChild(option);
+                });
+            } catch (error) {
+                console.error('Error loading categories:', error);
+            }
+        }
+        
+        // Display products in grid
         function displayProducts() {
-            const container = document.getElementById('product-grid');
-            container.innerHTML = '';
+            if (products.length === 0) {
+                productsContainer.innerHTML = '<div class="loading">No products found</div>';
+                return;
+            }
+            
+            productsContainer.innerHTML = '<div class="product-grid" id="product-grid"></div>';
+            const grid = document.getElementById('product-grid');
             
             products.forEach(product => {
                 const productElement = document.createElement('div');
                 productElement.className = 'product-card';
                 productElement.innerHTML = `
-                    <img src="${product.image}" class="product-image" alt="${product.name}">
+                    <img src="${product.image}" class="product-image" alt="${product.title}">
                     <div class="product-info">
-                        <h3 class="product-title">${product.name}</h3>
+                        <h3 class="product-title">${product.title}</h3>
                         <p class="product-price">$${product.price.toFixed(2)}</p>
+                        <div class="product-rating">
+                            ⭐ ${product.rating.rate} (${product.rating.count})
+                        </div>
                     </div>
                     <button class="product-button" onclick="showProductDetail(${product.id})">View Details</button>
                 `;
-                container.appendChild(productElement);
+                grid.appendChild(productElement);
             });
         }
         
+        // Filter products by category
+        function filterByCategory() {
+            const category = categorySelect.value;
+            loadProducts(category);
+        }
+        
         // Show product details
-        function showProductDetail(productId) {
-            currentProduct = products.find(p => p.id === productId);
-            
-            if (!currentProduct) return;
-            
-            const detailView = document.getElementById('product-detail');
-            detailView.innerHTML = `
-                <img src="${currentProduct.image}" style="width:100%; border-radius:8px; margin-bottom:12px;">
-                <h2>${currentProduct.name}</h2>
-                <p style="font-size:1.2em; color:var(--button-color);">$${currentProduct.price.toFixed(2)}</p>
-                <p>${currentProduct.description}</p>
-            `;
-            
-            document.getElementById('product-list-view').style.display = 'none';
-            document.getElementById('product-detail-view').style.display = 'block';
+        async function showProductDetail(productId) {
+            try {
+                // Check if we already have the product in memory
+                currentProduct = products.find(p => p.id === productId);
+                
+                if (!currentProduct) {
+                    // If not, fetch it from the API
+                    const response = await fetch(`https://fakestoreapi.com/products/${productId}`);
+                    if (!response.ok) throw new Error('Failed to load product');
+                    currentProduct = await response.json();
+                }
+                
+                productDetailContent.innerHTML = `
+                    <img src="${currentProduct.image}" class="detail-image" alt="${currentProduct.title}">
+                    <div class="product-detail">
+                        <span class="detail-category">${currentProduct.category}</span>
+                        <h2 class="detail-title">${currentProduct.title}</h2>
+                        <p class="detail-price">$${currentProduct.price.toFixed(2)}</p>
+                        <div class="product-rating">
+                            ⭐ ${currentProduct.rating.rate} (${currentProduct.rating.count} reviews)
+                        </div>
+                        <p class="detail-description">${currentProduct.description}</p>
+                    </div>
+                `;
+                
+                productListView.style.display = 'none';
+                cartView.style.display = 'none';
+                productDetailView.style.display = 'block';
+            } catch (error) {
+                tg.showAlert(`Error loading product: ${error.message}`);
+                console.error('Error loading product:', error);
+            }
         }
         
         // Show product list
         function showProductList() {
-            document.getElementById('product-list-view').style.display = 'block';
-            document.getElementById('product-detail-view').style.display = 'none';
+            productDetailView.style.display = 'none';
+            cartView.style.display = 'none';
+            productListView.style.display = 'block';
         }
         
-        // Add to cart function
+        // Show cart
+        function showCart() {
+            renderCart();
+            productDetailView.style.display = 'none';
+            productListView.style.display = 'none';
+            cartView.style.display = 'block';
+        }
+        
+        // Add to cart
         function addToCart() {
             if (!currentProduct) return;
             
-            tg.showAlert(`Added ${currentProduct.name} to your cart!`);
+            const existingItem = cart.find(item => item.id === currentProduct.id);
             
-            // In a real app, you would:
-            // 1. Add to cart in your backend
-            // 2. Update the cart count
-            // 3. Potentially show a confirmation
+            if (existingItem) {
+                existingItem.quantity += 1;
+            } else {
+                cart.push({
+                    ...currentProduct,
+                    quantity: 1
+                });
+            }
             
-            // For now, just show an alert and go back
+            saveCart();
+            tg.showAlert(`Added ${currentProduct.title} to your cart!`);
+        }
+        
+        // Render cart items
+        function renderCart() {
+            if (cart.length === 0) {
+                cartItems.innerHTML = '<div class="loading">Your cart is empty</div>';
+                cartTotal.textContent = '';
+                return;
+            }
+            
+            cartItems.innerHTML = '';
+            let total = 0;
+            
+            cart.forEach(item => {
+                const cartItem = document.createElement('div');
+                cartItem.className = 'product-card';
+                cartItem.style.marginBottom = '16px';
+                cartItem.innerHTML = `
+                    <div style="display:flex; gap:12px;">
+                        <img src="${item.image}" style="width:60px; height:60px; object-fit:contain;">
+                        <div style="flex:1;">
+                            <h3 style="margin:0; font-size:0.9rem;">${item.title}</h3>
+                            <p style="margin:4px 0; font-size:0.9rem;">$${item.price.toFixed(2)} × ${item.quantity}</p>
+                            <p style="margin:0; font-weight:bold;">$${(item.price * item.quantity).toFixed(2)}</p>
+                        </div>
+                        <div style="display:flex; flex-direction:column; align-items:center; justify-content:space-between;">
+                            <button onclick="changeQuantity(${item.id}, 1)" style="background:none; border:none; font-size:1.2rem; cursor:pointer;">➕</button>
+                            <button onclick="changeQuantity(${item.id}, -1)" style="background:none; border:none; font-size:1.2rem; cursor:pointer;">➖</button>
+                        </div>
+                    </div>
+                `;
+                cartItems.appendChild(cartItem);
+                total += item.price * item.quantity;
+            });
+            
+            cartTotal.textContent = `Total: $${total.toFixed(2)}`;
+        }
+        
+        // Change item quantity in cart
+        function changeQuantity(productId, change) {
+            const item = cart.find(item => item.id === productId);
+            if (!item) return;
+            
+            item.quantity += change;
+            
+            if (item.quantity <= 0) {
+                cart = cart.filter(item => item.id !== productId);
+            }
+            
+            saveCart();
+            renderCart();
+        }
+        
+        // Checkout function
+        function checkout() {
+            if (cart.length === 0) return;
+            
+            tg.showAlert(`Thank you for your order! Total: $${calculateTotal().toFixed(2)}`);
+            cart = [];
+            saveCart();
             showProductList();
+        }
+        
+        // Calculate cart total
+        function calculateTotal() {
+            return cart.reduce((total, item) => total + (item.price * item.quantity), 0);
+        }
+        
+        // Save cart to localStorage
+        function saveCart() {
+            localStorage.setItem('cart', JSON.stringify(cart));
+            updateCartCount();
+        }
+        
+        // Update cart count badge
+        function updateCartCount() {
+            const count = cart.reduce((total, item) => total + item.quantity, 0);
+            cartCount.textContent = count;
         }
         
         // Handle theme changes
